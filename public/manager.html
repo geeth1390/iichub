@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProtoHub — Manager Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+--steel-900:#172B3A;--steel-700:#294354;--steel-500:#62717A;
+--steel-300:#A7B2B0;--steel-100:#E1E8E2;--steel-50:#F0F3EF;
+--paper:#F8F7F2;--safety:#91A895;--oxide:#B96F55;
+--verd:#527B69;--line:#D7DED8
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--steel-900);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:1240px;margin:auto;padding:0 24px}
+header{background:var(--steel-900);color:white;border-bottom:3px solid var(--safety)}
+.hbar{display:flex;align-items:center;gap:14px;padding:14px 0}
+.mark{font-family:'Archivo Narrow';font-weight:700;font-size:20px;letter-spacing:.06em;text-transform:uppercase}
+.mark span{color:var(--safety)}
+.console-tag{font-family:'JetBrains Mono';font-size:10px;color:var(--steel-900);background:var(--safety);padding:3px 8px;letter-spacing:.1em}
+.whoami{margin-left:auto;text-align:right;font-size:12px;color:var(--steel-300)}
+.whoami b{color:white;font-family:'Archivo Narrow';font-size:14px}
+.stats{background:#20394A;border-bottom:1px solid rgba(255,255,255,.12)}
+.statrow{display:flex;flex-wrap:wrap}
+.stat{flex:1;min-width:120px;padding:14px 20px;border-right:1px solid rgba(255,255,255,.08)}
+.stat b{display:block;font-family:'Archivo Narrow';font-size:28px;color:white;line-height:1}
+.stat span{font-family:'JetBrains Mono';font-size:9px;letter-spacing:.08em;color:var(--steel-300);text-transform:uppercase}
+.stat.alert b{color:#B7CBB7}.stat.down b{color:#D99A80}
+.grid{display:grid;grid-template-columns:1fr 320px;gap:24px;padding:24px 0 60px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.colhead{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--steel-900)}
+.colhead h2{font-family:'Archivo Narrow';font-size:18px;font-weight:600}
+.colhead .n{font-family:'JetBrains Mono';font-size:12px;color:var(--steel-500);margin-left:auto}
+.job{background:#FFFEFA;border:1px solid var(--line);margin-bottom:10px;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;padding:14px 16px;border-left:4px solid var(--steel-300);border-radius:12px;box-shadow:0 5px 18px rgba(23,43,58,.055)}
+.job.act{border-left-color:var(--safety)}.job.run{border-left-color:var(--verd)}.job.wait{border-left-color:var(--steel-300)}
+.jid{font-family:'JetBrains Mono';font-size:11px;color:var(--steel-500);text-align:center;min-width:44px}
+.jid b{display:block;font-size:15px;color:var(--steel-900)}
+.jtitle{font-family:'Archivo Narrow';font-size:16px;font-weight:600}
+.jmeta{font-size:12.5px;color:var(--steel-500);margin-top:1px}
+.jtags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.tag{font-family:'JetBrains Mono';font-size:9.5px;letter-spacing:.04em;padding:2px 6px;border:1px solid var(--line);color:var(--steel-500);text-transform:uppercase}
+.tag.q{border-color:var(--verd);color:var(--verd)}
+.jright{text-align:right;min-width:130px}
+.status-lbl{font-family:'JetBrains Mono';font-size:10px;color:var(--steel-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+button{font-family:'Archivo Narrow';cursor:pointer;border:none;letter-spacing:.05em;text-transform:uppercase}
+button:disabled{opacity:.5;cursor:not-allowed}
+.act-btn{padding:8px 16px;background:var(--steel-900);color:white;font-weight:600;font-size:13px;border-radius:8px}
+.act-btn:hover{background:var(--verd)}
+.act-btn.prime{background:var(--safety);color:var(--steel-900)}
+.act-btn.warn{background:white;color:var(--oxide);border:1px solid var(--oxide);padding:7px 12px}
+.wait-note{font-size:11.5px;color:var(--steel-500);font-style:italic}
+.btnrow{display:flex;gap:6px;justify-content:flex-end;margin-top:4px}
+.panel{background:#FFFEFA;border:1px solid var(--line);margin-bottom:20px;border-radius:12px;box-shadow:0 5px 18px rgba(23,43,58,.055);overflow:hidden}
+.panel h3{font-family:'Archivo Narrow';font-size:14px;font-weight:600;padding:11px 14px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.04em}
+.panel h3.warn{background:#F7EAE4;color:#98543F}
+.stock{padding:11px 14px;border-bottom:1px solid var(--steel-50);display:flex;align-items:center;gap:10px}
+.stock:last-child{border-bottom:none}
+.stock .bar{flex:1;min-width:0}
+.stock .sname{font-size:13px;font-weight:500}
+.stock .smeta{font-family:'JetBrains Mono';font-size:10.5px;color:var(--steel-500)}
+.meter{height:5px;background:var(--steel-100);margin-top:5px;position:relative;border-radius:20px;overflow:hidden}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:var(--verd);border-radius:20px}
+.meter i.low{background:var(--oxide)}
+.restock{padding:5px 10px;background:var(--steel-900);color:white;font-size:11px;font-weight:600;border-radius:8px}
+.empty{padding:24px 14px;text-align:center;color:var(--steel-500);font-size:13px}
+.empty b{display:block;font-family:'Archivo Narrow';font-size:15px;color:var(--steel-900);margin-bottom:3px}
+.modal{position:fixed;inset:0;background:rgba(14,30,40,.68);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modal.on{display:flex}
+.sheet{background:#FFFEFA;max-width:520px;width:100%;border-top:4px solid var(--safety);border-radius:14px;overflow:hidden}
+.shead{padding:16px 20px;border-bottom:1px solid var(--line)}
+.shead h3{font-family:'Archivo Narrow';font-size:18px}
+.shead p{font-size:12.5px;color:var(--steel-500);margin-top:2px}
+.sbody{padding:18px 20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--steel-500);margin-bottom:5px}
+.field input{width:100%;padding:9px 11px;border:1px solid var(--line);font-family:'JetBrains Mono';font-size:14px;background:white;color:var(--steel-900);border-radius:7px}
+.field input:focus{outline:2px solid var(--safety);border-color:var(--safety)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sfoot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px}
+.sfoot button{padding:9px 18px;font-size:13px;font-weight:600}
+.ghost{background:none;border:1px solid var(--line);color:var(--steel-500);border-radius:8px}
+.send{background:var(--safety);color:var(--steel-900);margin-left:auto;border-radius:8px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--steel-900);color:white;padding:12px 22px;font-family:'JetBrains Mono';font-size:13px;z-index:60;border-left:3px solid var(--safety);opacity:0;transition:opacity .2s;pointer-events:none;border-radius:9px;max-width:90%;text-align:center}
+.toast.on{opacity:1}
+.login-screen{position:fixed;inset:0;background:rgba(14,30,40,.88);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+.login-card{background:#FFFEFA;width:100%;max-width:420px;padding:28px;border-top:5px solid var(--safety);border-radius:14px}
+.login-card h2{font-family:'Archivo Narrow';font-size:25px;margin-bottom:5px}
+.login-card p{color:var(--steel-500);font-size:13px;margin-bottom:18px}
+.login-card input{width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;margin:7px 0 14px;font:14px 'JetBrains Mono'}
+.login-card button{width:100%;padding:12px;background:var(--steel-900);color:white;border-radius:8px;font-size:14px}
+.login-card button:disabled{opacity:.5}
+.login-message{font-size:12px;color:var(--verd);margin-top:12px;overflow-wrap:anywhere}
+.demo-otp{font-family:'JetBrains Mono';font-weight:600;font-size:18px;letter-spacing:3px}
+.hidden{display:none!important}
+@media(max-width:680px){.wrap{padding-left:17px;padding-right:17px}.hbar{flex-wrap:wrap}.whoami{width:100%;margin-left:0;text-align:left}.job{grid-template-columns:auto 1fr}.jright{grid-column:2;text-align:left}.btnrow{justify-content:flex-start}.row2{grid-template-columns:1fr}}
+.login-card label{display:block;font-size:12px;color:var(--steel-500)}
+.forgot{font-size:12px!important;margin:14px 0 0!important}
+.centre-pick{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:13px Inter,sans-serif;max-width:240px}
+a.act-btn{text-decoration:none;display:inline-block}
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h2>ProtoHub</h2>
+    <p>Manager console · centre staff and administrators</p>
+    <div id="emailStep" data-form>
+      <label for="emailInput">Email</label>
+      <input id="emailInput" type="email" autocomplete="username" maxlength="254">
+      <label for="passwordInput">Password</label>
+      <input id="passwordInput" type="password" autocomplete="current-password" maxlength="128">
+      <button id="loginBtn" class="primary" data-act="doLogin">Sign in</button>
+    </div>
+    <div id="passwordStep" class="hidden" data-form>
+      <label for="tempInput">Temporary password</label>
+      <input id="tempInput" type="password" autocomplete="current-password" maxlength="128">
+      <label for="newInput">New password (at least 10 characters)</label>
+      <input id="newInput" type="password" autocomplete="new-password" maxlength="128">
+      <label for="new2Input">Type it again</label>
+      <input id="new2Input" type="password" autocomplete="new-password" maxlength="128">
+      <button id="setPwBtn" class="primary" data-act="doSetPassword">Save password</button>
+    </div>
+    <div id="loginMessage" class="login-message"></div>
+    <p class="forgot">Forgot your password? Ask your centre manager or administrator to reset it.</p>
+  </div>
+</div>
+
+<header>
+  <div class="wrap hbar">
+    <div class="mark">APIC <span>ProtoHub</span></div>
+    <div class="console-tag">MANAGER CONSOLE</div>
+    <div class="whoami"><b id="managerName">Manager</b><br><span id="managerCentre">Loading centre...</span></div>
+    <select id="centrePick" class="hidden centre-pick" aria-label="Centre"></select>
+    <a id="adminLink" class="act-btn hidden" href="/admin">Admin</a>
+    <button class="act-btn" data-act="logout">Sign out</button>
+  </div>
+</header>
+
+<div class="stats"><div class="wrap"><div class="statrow" id="stats"></div></div></div>
+
+<div class="wrap">
+  <div class="grid">
+    <div>
+      <div class="colhead"><h2>Job queue</h2><div class="n" id="qcount"></div></div>
+      <div id="queue"><div class="empty">Loading jobs...</div></div>
+    </div>
+    <div>
+      <div class="colhead"><h2>Material stock</h2></div>
+      <div class="panel"><h3 id="stockhead">On hand</h3><div id="stock"></div></div>
+      <div class="panel"><h3>Machines</h3><div id="machines"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="/js/common.js"></script>
+<script src="/js/manager.js"></script>
+</body>
+</html>

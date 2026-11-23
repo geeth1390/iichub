@@ -1,0 +1,324 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APIC ProtoHub — Find a machine</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --steel-900:#172B3A;
+  --steel-700:#294354;
+  --steel-500:#62717A;
+  --steel-300:#A7B2B0;
+  --steel-100:#E1E8E2;
+  --steel-50:#F0F3EF;
+  --paper:#F8F7F2;
+  --safety:#91A895;
+  --oxide:#B96F55;
+  --verdigris:#527B69;
+  --line:#D7DED8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--steel-900);
+  font-family:Inter,system-ui,sans-serif;
+  font-size:15px;line-height:1.5;
+}
+.wrap{max-width:1180px;margin:auto;padding:0 24px}
+header{
+  background:var(--steel-900);color:#fff;
+  border-bottom:3px solid var(--safety);
+}
+.hbar{display:flex;align-items:center;gap:16px;padding:18px 0}
+.mark{
+  font-family:'Archivo Narrow',sans-serif;
+  font-weight:700;font-size:22px;letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.mark span{color:var(--safety)}
+.hmeta{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--steel-300);
+  margin-left:auto;
+}
+.header-actions{display:flex;gap:8px;align-items:center}
+.header-btn{
+  border:1px solid #617783;background:transparent;color:white;
+  padding:8px 12px;border-radius:8px;cursor:pointer;
+  font-family:'Archivo Narrow',sans-serif;font-weight:600;
+}
+.header-btn:hover{background:#294354}
+.matcher{
+  background:linear-gradient(135deg,#20394A,#294354 58%,#365568);
+  color:#fff;padding:28px 0 32px;
+}
+.matcher h1{
+  font-family:'Archivo Narrow',sans-serif;
+  font-size:30px;font-weight:600;margin-bottom:4px;
+}
+.matcher p.sub{color:var(--steel-300);font-size:14px;margin-bottom:22px}
+.fields{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:14px;align-items:end;
+}
+label{
+  display:block;font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--steel-300);margin-bottom:6px;
+}
+input,select,textarea{
+  width:100%;padding:10px 12px;background:#20394A;color:#fff;
+  border:1px solid #526A78;border-radius:9px;
+  font-family:'JetBrains Mono',monospace;font-size:14px;
+}
+input:focus,select:focus,textarea:focus{
+  outline:2px solid var(--safety);border-color:var(--safety);
+}
+.dims{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:6px;align-items:center}
+.x{color:var(--steel-300);font-family:monospace}
+button.go{
+  padding:10px 22px;background:var(--safety);color:var(--steel-900);
+  border:none;border-radius:9px;cursor:pointer;
+  font-family:'Archivo Narrow',sans-serif;font-weight:700;
+  font-size:15px;letter-spacing:.06em;text-transform:uppercase;
+}
+button.go:hover{background:#A9BDAA}
+button:disabled{opacity:.45;cursor:not-allowed}
+.results{padding:28px 0 60px}
+.rhead{
+  display:flex;align-items:baseline;gap:10px;margin-bottom:16px;
+  padding-bottom:10px;border-bottom:2px solid var(--steel-900);
+}
+.rhead h2{font-family:'Archivo Narrow',sans-serif;font-size:19px}
+.rcount{font-family:monospace;font-size:12px;color:var(--steel-500);margin-left:auto}
+.card{
+  display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;
+  background:#FFFEFA;border:1px solid var(--line);
+  border-left:4px solid var(--safety);border-radius:13px;
+  padding:14px 18px;margin-bottom:10px;
+  box-shadow:0 5px 18px rgba(23,43,58,.055);
+}
+.card.maint{border-left-color:var(--oxide);opacity:.72}
+.fit{font-family:monospace;text-align:center;min-width:52px}
+.fit b{display:block;font-size:17px;font-weight:500}
+.fit span{font-size:9px;color:var(--steel-500)}
+.cname{font-family:'Archivo Narrow',sans-serif;font-size:17px;font-weight:600}
+.cmeta{font-size:12.5px;color:var(--steel-500);margin-top:2px}
+.creason{font-family:monospace;font-size:11px;color:var(--steel-500);margin-top:5px}
+.right{text-align:right}
+.rate{font-family:monospace;font-size:16px;font-weight:500}
+.rate small{font-size:10px;color:var(--steel-500)}
+button.book{
+  margin-top:8px;padding:7px 16px;background:var(--steel-900);color:#fff;
+  border:none;border-radius:8px;cursor:pointer;
+  font-family:'Archivo Narrow',sans-serif;font-weight:600;
+  font-size:13px;text-transform:uppercase;
+}
+button.book:hover{background:var(--verdigris)}
+.empty{
+  border:1px dashed var(--line);padding:28px;text-align:center;
+  color:var(--steel-500);background:#FFFEFA;border-radius:12px;
+}
+.empty b{display:block;color:var(--steel-900);font-family:'Archivo Narrow',sans-serif;font-size:17px}
+.modal{
+  position:fixed;inset:0;background:rgba(14,30,40,.68);
+  backdrop-filter:blur(5px);display:none;
+  align-items:center;justify-content:center;padding:16px;z-index:50;
+}
+.modal.on{display:flex}
+.sheet{
+  background:#FFFEFA;max-width:620px;width:100%;
+  max-height:90vh;overflow:hidden;border-top:4px solid var(--safety);
+  border-radius:15px;box-shadow:0 12px 40px rgba(0,0,0,.2);
+}
+.shead{padding:18px 22px;border-bottom:1px solid var(--line)}
+.shead h3{font-family:'Archivo Narrow',sans-serif;font-size:20px}
+.shead p{font-size:12.5px;color:var(--steel-500);margin-top:3px}
+.sbody{padding:18px 22px;max-height:62vh;overflow:auto}
+.sfoot{
+  padding:16px 22px;border-top:1px solid var(--line);
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+}
+.sfoot button{margin-left:auto}
+button.ghost{
+  background:none;border:1px solid var(--line);color:var(--steel-500);
+  padding:8px 16px;cursor:pointer;border-radius:8px;
+  font-family:'Archivo Narrow',sans-serif;font-size:13px;text-transform:uppercase;
+}
+.field{margin-bottom:14px}
+.field label{color:var(--steel-500)}
+.field input,.field select,.field textarea{
+  background:#F0F3EF;color:var(--steel-900);
+  border-color:var(--line);font-family:Inter,sans-serif;
+}
+.field textarea{min-height:75px;resize:vertical}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.day{margin-bottom:16px}
+.dlabel{
+  font-family:monospace;font-size:11px;letter-spacing:.08em;
+  color:var(--steel-500);text-transform:uppercase;margin-bottom:7px;
+}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:7px}
+.slot{
+  padding:9px 4px;text-align:center;border:1px solid var(--line);
+  background:#fff;color:var(--steel-900);cursor:pointer;
+  font-family:monospace;font-size:12px;border-radius:8px;
+}
+.slot:hover{border-color:var(--verdigris);background:var(--steel-50)}
+.slot.sel{background:var(--safety);border-color:var(--safety);font-weight:600}
+.est{font-family:monospace;font-size:12px;color:var(--steel-500)}
+.est b{color:var(--steel-900);font-size:15px}
+.message{font-size:13px;margin:10px 0;color:var(--oxide);white-space:pre-wrap}
+.success{color:var(--verdigris)}
+.job{
+  background:#FFFEFA;border:1px solid var(--line);border-left:4px solid var(--steel-300);
+  border-radius:10px;padding:14px;margin-bottom:10px;
+}
+.job h4{font-family:'Archivo Narrow',sans-serif;font-size:17px}
+.job-meta{font-size:12px;color:var(--steel-500);margin:4px 0}
+.job-status{
+  display:inline-block;font:11px monospace;padding:4px 7px;
+  border:1px solid var(--line);border-radius:5px;margin:5px 0;
+}
+.job-price{font-family:monospace;font-size:16px;font-weight:600;margin:6px 0}
+.job-actions{display:flex;gap:8px;align-items:center;margin-top:8px}
+.job-actions button{margin-top:0}
+.done{padding:34px 22px;text-align:center}
+.done .tick{font-size:34px;color:var(--verdigris);margin-bottom:8px}
+.done h3{font-family:'Archivo Narrow',sans-serif;font-size:21px;margin-bottom:6px}
+.done p{font-size:13.5px;color:var(--steel-500);margin-bottom:4px}
+.jobno{
+  font-family:monospace;font-size:13px;background:var(--steel-50);
+  padding:9px;margin:12px 0;border:1px solid var(--line);border-radius:9px;
+}
+.toast{
+  position:fixed;bottom:20px;right:20px;z-index:100;
+  background:var(--steel-900);color:#fff;padding:12px 16px;
+  border-left:4px solid var(--safety);border-radius:9px;
+  display:none;max-width:360px;box-shadow:0 8px 24px rgba(23,43,58,.2);
+}
+.toast.on{display:block}
+@media(max-width:680px){
+  .wrap{padding-left:17px;padding-right:17px}
+  .hbar{flex-wrap:wrap}
+  .hmeta{width:100%;margin-left:0}
+  .header-actions{margin-left:auto}
+  .card{grid-template-columns:auto 1fr;gap:12px}
+  .right{grid-column:1/-1;text-align:left;display:flex;align-items:center;gap:12px;padding-top:8px;border-top:1px dashed var(--line)}
+  button.book{margin:0 0 0 auto}
+  .form-grid{grid-template-columns:1fr}
+}
+.links{font-size:13px;margin-top:10px;color:var(--steel-500)}
+.links a{color:inherit;text-decoration:underline}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;margin:6px 0 4px}
+.check input{width:auto}
+.message.ok{color:var(--verdigris)}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="wrap hbar">
+    <div class="mark">APIC <span>ProtoHub</span></div>
+    <div class="hmeta">ANDHRA PRADESH INNOVATION SOCIETY · MACHINE NETWORK</div>
+    <div class="header-actions">
+      <button class="header-btn" data-act="openMyJobs">My Jobs</button>
+      <button class="header-btn" id="accountBtn" data-act="accountAction">Sign in</button>
+    </div>
+  </div>
+</header>
+
+<section class="matcher">
+  <div class="wrap">
+    <h1>What are you making?</h1>
+    <p class="sub">Describe the part. We'll show machines that can make it.</p>
+
+    <div class="fields">
+      <div>
+        <label>Part size (mm)</label>
+        <div class="dims">
+          <input id="x" type="number" value="120" min="1">
+          <span class="x">×</span>
+          <input id="y" type="number" value="80" min="1">
+          <span class="x">×</span>
+          <input id="z" type="number" value="40" min="1">
+        </div>
+      </div>
+      <div>
+        <label>Material</label>
+        <select id="mat">
+          <option value="">Any material</option>
+          <option value="pla" selected>PLA</option>
+          <option value="abs">ABS</option>
+          <option value="petg">PETG</option>
+          <option value="nylon_pa12">Nylon PA12</option>
+          <option value="resin_std">Standard Resin</option>
+          <option value="al_6061">Aluminium 6061</option>
+          <option value="acrylic">Acrylic Sheet</option>
+          <option value="mdf">MDF Board</option>
+          <option value="fr4">FR4 Copper-Clad</option>
+        </select>
+      </div>
+      <div>
+        <label>Precision needed</label>
+        <select id="tol">
+          <option value="">Not fussy</option>
+          <option value="0.3">Rough (±0.3mm)</option>
+          <option value="0.15">Normal (±0.15mm)</option>
+          <option value="0.05">Precise (±0.05mm)</option>
+          <option value="0.02">Very precise (±0.02mm)</option>
+        </select>
+      </div>
+      <div>
+        <label>You are</label>
+        <select id="who">
+          <option value="student" selected>Student</option>
+          <option value="startup">Startup</option>
+          <option value="industry">Industry</option>
+          <option value="individual">Individual</option>
+        </select>
+      </div>
+      <div>
+        <label>Near</label>
+        <select id="loc">
+          <option value="16.9894,82.2475">Kakinada</option>
+          <option value="17.7300,83.3190" selected>Visakhapatnam</option>
+          <option value="16.5061,80.6480">Vijayawada</option>
+          <option value="13.6287,79.4192">Tirupati</option>
+          <option value="14.6815,77.6004">Anantapur</option>
+          <option value="17.3850,78.4867">Hyderabad</option>
+          <option value="12.9716,77.5946">Bengaluru</option>
+          <option value="13.0827,80.2707">Chennai</option>
+          <option value="19.0760,72.8777">Mumbai</option>
+          <option value="18.5204,73.8567">Pune</option>
+          <option value="23.0225,72.5714">Ahmedabad</option>
+        </select>
+      </div>
+      <div><button class="go" data-act="run">Find machines</button></div>
+    </div>
+  </div>
+</section>
+
+<section class="results">
+  <div class="wrap">
+    <div class="rhead">
+      <h2>Machines that can make this</h2>
+      <div class="rcount" id="count"></div>
+    </div>
+    <div id="list"><div class="empty">Loading machines…</div></div>
+  </div>
+</section>
+
+<div class="modal" id="modal">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/js/common.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
