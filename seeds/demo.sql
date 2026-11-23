@@ -7,11 +7,11 @@
 -- ============================================================
 
 INSERT INTO centre (name, district, address, lat, lng, phone, is_live) VALUES
-('APIC Visakhapatnam',  'Visakhapatnam', 'AU Engineering College Campus, Visakhapatnam', 17.730000, 83.319000, '0891-2844000', TRUE),
-('APIC Vijayawada',     'NTR',           'Siddhartha Engineering College, Vijayawada',   16.506100, 80.648000, '0866-2582333', TRUE),
-('APIC Tirupati',       'Tirupati',      'SVU Campus, Tirupati',                          13.628700, 79.419200, '0877-2289000', TRUE),
-('APIC Kakinada',       'Kakinada',      'JNTU-K Campus, Kakinada',                       16.989400, 82.247500, '0884-2300900', TRUE),
-('APIC Anantapur',      'Anantapur',     'JNTU-A Campus, Anantapur',                      14.681500, 77.600400, '08554-272000', FALSE); -- not commissioned yet
+('APIIC Visakhapatnam',  'Visakhapatnam', 'AU Engineering College Campus, Visakhapatnam', 17.730000, 83.319000, '0891-2844000', TRUE),
+('APIIC Vijayawada',     'NTR',           'Siddhartha Engineering College, Vijayawada',   16.506100, 80.648000, '0866-2582333', TRUE),
+('APIIC Tirupati',       'Tirupati',      'SVU Campus, Tirupati',                          13.628700, 79.419200, '0877-2289000', TRUE),
+('APIIC Kakinada',       'Kakinada',      'JNTU-K Campus, Kakinada',                       16.989400, 82.247500, '0884-2300900', TRUE),
+('APIIC Anantapur',      'Anantapur',     'JNTU-A Campus, Anantapur',                      14.681500, 77.600400, '08554-272000', FALSE); -- not commissioned yet
 
 -- One locked system account owns the sample usage history.
 -- It has no password and is disabled, so nobody can sign in as it.

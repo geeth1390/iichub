@@ -356,7 +356,8 @@ async function run(){
   const z=Number(val('z'));
   const mat=val('mat');
   const tol=val('tol');
-  const [lat,lng]=val('loc').split(',').map(Number);
+  const loc=val('loc');
+  const [lat,lng]=loc?loc.split(',').map(Number):[null,null];
 
   if(!(x>0&&y>0&&z>0)){
     renderMessage('Enter all three part dimensions.');
@@ -366,7 +367,8 @@ async function run(){
   $('list').innerHTML='<div class="empty">Searching the machine network…</div>';
 
   try{
-    const q=new URLSearchParams({x,y,z,lat,lng,qty:1});
+    const q=new URLSearchParams({x,y,z,qty:1});
+    if(lat!==null){ q.set('lat',lat); q.set('lng',lng); }
     if(mat) q.set('mat',mat);
     if(tol) q.set('tol',tol);
 
@@ -704,6 +706,8 @@ async function cancelJob(jobId){
     showToast(e.message);
   }
 }
+
+['loc','mat','tol'].forEach(id=>$(id).addEventListener('change',run));
 
 window.ACTIONS={
   run, openSlots, selectSlot, confirmBooking, openMyJobs, acceptQuote, cancelJob, closeM,
