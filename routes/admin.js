@@ -283,17 +283,26 @@ module.exports = async function adminRoutes(app, { db, auth, audit }) {
     schema: {
       body: {
         type: 'object', additionalProperties: false, required: ['verification'],
-        properties: { verification: { enum: ['verified', 'rejected', 'suspended', 'pending'] }, platform_fee_pct: pct },
+        properties: {
+          verification: { enum: ['verified', 'changes_requested', 'rejected', 'suspended', 'pending'] },
+          platform_fee_pct: pct,
+          note: { type: 'string', maxLength: 1000 },
+        },
       },
     },
   }, async (req) => {
     const id = int(req.params.id);
+    const note = (req.body.note || '').trim();
+    if (['changes_requested', 'rejected'].includes(req.body.verification) && note.length < 5) {
+      throw httpError(400, 'Write a short note telling the owner what to change or why it was rejected.');
+    }
     const { rowCount } = await db.query(
-      `UPDATE centre SET verification = $2, platform_fee_pct = COALESCE($3, platform_fee_pct)
-        WHERE id = $1 AND owner_type <> 'government'`,
-      [id, req.body.verification, req.body.platform_fee_pct ?? null]
+      `UPDATE centre SET verification = $2, platform_fee_pct = COALESCE($3, platform_fee_pct),
+              review_note = $4, reviewed_at = now(), reviewed_by = $5
+        WHERE id = $1 AND owner_type <> 'government' AND verification <> 'draft'`,
+      [id, req.body.verification, req.body.platform_fee_pct ?? null, note || null, req.user.id]
     );
-    if (!rowCount) throw httpError(404, 'Listing not found.');
+    if (!rowCount) throw httpError(404, 'Listing not found, or the owner has not submitted it yet.');
     await audit(req, 'centre.verification', 'centre', id, req.body);
     return { ok: true };
   });

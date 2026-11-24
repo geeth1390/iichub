@@ -2,6 +2,8 @@
 FROM node:22-alpine
 
 ENV NODE_ENV=production
+# Keeps memory use steady when photos are processed.
+ENV MALLOC_ARENA_MAX=2
 WORKDIR /app
 
 # Install exact dependency versions from the lockfile (no dev tools).

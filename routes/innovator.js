@@ -30,13 +30,6 @@ module.exports = async function innovatorRoutes(app, { db, auth, audit }) {
     if (mailEnabled() && !req.user.email_verified_at) {
       throw httpError(403, 'Please confirm your email address before booking. Check your inbox for the link.');
     }
-    const { rows: open } = await db.query(
-      `SELECT count(*)::int AS n FROM job WHERE user_id = $1 AND status IN ('quote_pending','quote_sent','quote_accepted')`,
-      [req.user.id]
-    );
-    if (open[0].n >= OPEN_JOB_LIMIT) {
-      throw httpError(429, `You already have ${OPEN_JOB_LIMIT} bookings waiting. Finish or cancel some first.`);
-    }
     if (b.material) {
       const { rows } = await db.query(
         'SELECT 1 FROM machine_material WHERE machine_id = $1 AND material_code = $2', [b.machine_id, b.material]
@@ -47,6 +40,15 @@ module.exports = async function innovatorRoutes(app, { db, auth, audit }) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
+      // Lock this user's row so parallel requests can't slip past the limit.
+      await client.query('SELECT id FROM app_user WHERE id = $1 FOR UPDATE', [req.user.id]);
+      const { rows: open } = await client.query(
+        `SELECT count(*)::int AS n FROM job WHERE user_id = $1 AND status IN ('quote_pending','quote_sent','quote_accepted')`,
+        [req.user.id]
+      );
+      if (open[0].n >= OPEN_JOB_LIMIT) {
+        throw httpError(429, `You already have ${OPEN_JOB_LIMIT} bookings waiting. Finish or cancel some first.`);
+      }
       const bk = await client.query(
         `INSERT INTO booking (machine_id, user_id, slot, status)
          VALUES ($1, $2, tstzrange($3::timestamptz, $4::timestamptz), 'confirmed') RETURNING id`,
@@ -72,7 +74,8 @@ module.exports = async function innovatorRoutes(app, { db, auth, audit }) {
   app.get('/my/jobs', { preValidation: auth.guard() }, async (req) => {
     const { rows } = await db.query(
       `SELECT j.id, j.title, j.status, j.quantity, j.created_at,
-              m.make || ' ' || m.model AS machine, c.name AS centre,
+              m.make || ' ' || m.model AS machine, c.name AS centre, c.address AS centre_address,
+              c.district AS centre_district, c.phone AS centre_phone, m.id AS machine_id,
               lower(b.slot) AS slot_start, upper(b.slot) AS slot_end,
               (SELECT total FROM quote WHERE job_id = j.id ORDER BY version DESC LIMIT 1) AS quote
          FROM job j

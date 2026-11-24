@@ -1,5 +1,5 @@
 // ============================================================
-// ProtoHub API server
+// IICHUB API server
 // Serves the screens and the API, enforces sign-in and roles, and (by
 // default) runs the notification worker in the same process.
 // ============================================================
@@ -60,7 +60,7 @@ async function buildApp({ config, db, logger = true }) {
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:'],
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"],
         formAction: ["'self'"],
@@ -128,6 +128,7 @@ async function buildApp({ config, db, logger = true }) {
   await app.register(require('./routes/staff'), ctx);
   await app.register(require('./routes/owner'), ctx);
   await app.register(require('./routes/admin'), ctx);
+  await app.register(require('./routes/listings'), ctx);
 
   app.get('/config.json', async () => ({ sample_notice: config.demoBanner }));
 
@@ -169,7 +170,7 @@ async function main() {
   process.on('SIGINT', () => close('SIGINT'));
 
   await app.listen({ port: config.port, host: '0.0.0.0' });
-  app.log.info(`ProtoHub ready on :${config.port} (${config.siteUrl})`);
+  app.log.info(`IICHUB ready on :${config.port} (${config.siteUrl})`);
 }
 
 if (require.main === module) {

@@ -1,5 +1,5 @@
 'use strict';
-// ProtoHub admin console. The server enforces every permission; this
+// IICHUB admin console. The server enforces every permission; this
 // screen only hides what a role can't use.
 
 const TOKEN_KEY = 'protohub_admin_token';
@@ -140,7 +140,7 @@ async function start() {
 // ---------------------------------------------------------------- tabs
 function renderTabs() {
   const tabs = isAdmin()
-    ? [['overview', 'Overview'], ['users', 'Accounts'], ['centres', 'Centres & listings'], ['machines', 'Machines']]
+    ? [['overview', 'Overview'], ['listings', 'Listings to review'], ['users', 'Accounts'], ['centres', 'Centres'], ['machines', 'Machines']]
     : [['users', 'Staff accounts']];
   if (isSuper()) tabs.push(['audit', 'Audit log']);
   tabs.push(['account', 'My account']);
@@ -151,7 +151,7 @@ async function show(name) {
   renderTabs();
   $('view').innerHTML = '<div class="empty">Loading…</div>';
   try {
-    await ({ overview: viewOverview, users: viewUsers, centres: viewCentres, machines: viewMachines, audit: viewAudit, account: viewAccount }[name])();
+    await ({ overview: viewOverview, listings: viewListings, users: viewUsers, centres: viewCentres, machines: viewMachines, audit: viewAudit, account: viewAccount }[name])();
   } catch (e) {
     $('view').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   }
@@ -177,7 +177,7 @@ async function viewOverview() {
   ];
   $('view').innerHTML = `<h2>Overview</h2><p class="sub">The whole network at a glance.</p>
     <div class="cards">${cards.map(([l, val, c]) => `<div class="card ${c || ''}"><b>${esc(val)}</b><span>${esc(l)}</span></div>`).join('')}</div>
-    ${o.pending_listings ? '<p><button class="btn primary" data-act="show" data-arg="centres">Review pending listings</button></p>' : ''}`;
+    ${o.pending_listings ? '<p><button class="btn primary" data-act="show" data-arg="listings">Review pending listings</button></p>' : ''}`;
 }
 
 // ---------------------------------------------------------------- accounts
@@ -293,6 +293,91 @@ async function resetUser(id) {
   } catch (e) { toast(e.message); }
 }
 
+
+// ---------------------------------------------------------------- listings to review
+const LSTATUS = { draft: 'Draft', pending: 'Waiting for review', changes_requested: 'Changes requested', verified: 'Live', rejected: 'Rejected', suspended: 'Suspended' };
+let LISTINGS = [];
+let listingFilter = 'open';
+async function viewListings() {
+  $('view').innerHTML = `<h2>Listings to review</h2>
+    <p class="sub">Private owners' machines. Check the photos, address and procedure, then approve, ask for changes or reject. Nothing is visible to innovators until you approve it.</p>
+    <div class="toolbar"><select id="lFilter" aria-label="Show">${[['open', 'Waiting for review'], ['changes_requested', 'Changes requested'], ['verified', 'Live'], ['rejected', 'Rejected'], ['suspended', 'Suspended'], ['draft', 'Drafts (not submitted)'], ['all', 'All']].map(([k, l]) => opt(k, l, listingFilter)).join('')}</select></div>
+    <div id="lList"><div class="empty">Loading…</div></div>`;
+  $('lFilter').addEventListener('change', () => { listingFilter = v('lFilter'); loadListings(); });
+  await loadListings();
+}
+async function loadListings() {
+  LISTINGS = await api('/admin/listings?status=' + listingFilter);
+  $('lList').innerHTML = LISTINGS.length ? LISTINGS.map((l) => {
+    const m = l.machines[0] || {};
+    const g = m.guide || {};
+    const canDecide = !['draft'].includes(l.verification);
+    return `<div class="tablewrap" style="padding:20px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div><div class="muted">${esc(l.owner_name || '')} · ${esc(l.owner_email || '')}${l.owner_phone ? ' · ' + esc(l.owner_phone) : ''}${l.submitted_at ? ' · submitted ' + fmtDate(l.submitted_at) : ''}</div>
+          <h3 style="font-size:22px;margin-top:4px">${esc((m.make || '') + ' ' + (m.model || ''))} · ${esc(l.name)}</h3></div>
+        <span class="pill ${l.verification === 'verified' ? 'live' : ['rejected', 'suspended'].includes(l.verification) ? 'off' : 'pending'}">${esc(LSTATUS[l.verification] || l.verification)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0">
+        ${(m.photos || []).map((p) => `<figure style="margin:0"><img data-photo="${Number(p.id)}" alt="${esc(p.kind)} photo" style="width:100%;height:120px;object-fit:cover;border-radius:12px;background:var(--steel-50)"><figcaption class="muted" style="font-size:12px">${esc({ machine: 'Device', location: 'Entrance', sample_output: 'Sample output' }[p.kind] || p.kind)}</figcaption></figure>`).join('') || '<div class="muted">No photos.</div>'}
+      </div>
+      <div class="grid2" style="gap:16px">
+        <div>
+          ${[['Address', `${l.address}, ${l.district} ${l.pincode || ''}`], ['Map position', `${Number(l.lat).toFixed(4)}, ${Number(l.lng).toFixed(4)}`], ['Phone', l.phone || '—'], ['Hours', `${String(l.opens_at).slice(0, 5)}–${String(l.closes_at).slice(0, 5)} · ${(l.working_days || []).map((d) => DAY[d]).join(' ')}`],
+             ['Process', m.process || ''], ['Build size', m.size || ''], ['Precision', m.tolerance_mm ? '±' + Number(m.tolerance_mm) + ' mm' : '—'], ['Materials', (m.materials || []).join(', ')], ['Rate', money(m.rate_per_hour) + '/hr']]
+            .map(([k, val]) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px"><span class="muted">${esc(k)}</span><b style="text-align:right">${esc(val)}</b></div>`).join('')}
+          <p style="margin-top:8px"><a href="https://www.google.com/maps?q=${Number(l.lat)},${Number(l.lng)}" target="_blank" rel="noopener noreferrer">Open the location in Google Maps</a></p>
+        </div>
+        <div style="font-size:14px;line-height:1.55">
+          <p><b>How a job runs:</b> ${esc(g.how_to_use || '—')}</p>
+          ${g.prep_notes ? `<p style="margin-top:6px"><b>Preparation:</b> ${esc(g.prep_notes)}</p>` : ''}
+          <p style="margin-top:6px"><b>Safety:</b> ${esc(g.safety_notes || '—')}</p>
+          <p style="margin-top:6px" class="muted">Files: ${esc((g.file_formats || []).join(', ') || '—')} · ${g.requires_operator ? 'Operator runs the machine' : 'Visitors operate it'} · ${g.typical_lead_hrs ? 'about ' + Number(g.typical_lead_hrs) + ' h turnaround' : 'turnaround not given'}</p>
+          ${m.sop ? `<p style="margin-top:8px"><button class="btn sm ghost" data-act="downloadSop" data-arg="${Number(m.id)}">Download SOP (${esc(m.sop.filename)})</button></p>` : ''}
+        </div>
+      </div>
+      ${l.review_note ? `<p class="muted" style="margin-top:10px">Last note to owner: ${esc(l.review_note)}</p>` : ''}
+      ${canDecide ? `<div data-form style="margin-top:16px;padding:16px;border-radius:16px;background:var(--steel-900);color:#fff;display:grid;grid-template-columns:140px 1fr auto;gap:12px;align-items:end">
+        <div class="field" style="margin:0"><label for="fee${l.id}" style="color:#fff">IICHUB fee %</label>${inp('fee' + l.id, l.platform_fee_pct, 'number', 'min="0" max="100" step="0.5"')}</div>
+        <div class="field" style="margin:0"><label for="note${l.id}" style="color:#fff">Note to the owner (needed for "Ask for changes" or "Reject")</label>${inp('note' + l.id, '', 'text', 'maxlength="1000" placeholder="e.g. Please add a clearer front photo"')}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${l.verification !== 'verified' ? `<button class="btn primary" data-act="decide" data-arg="${l.id}:verified">Approve</button>` : ''}
+          <button class="btn ghost" data-act="decide" data-arg="${l.id}:changes_requested">Ask for changes</button>
+          ${l.verification === 'verified' ? `<button class="btn danger" data-act="decide" data-arg="${l.id}:suspended">Suspend</button>` : `<button class="btn danger" data-act="decide" data-arg="${l.id}:rejected">Reject</button>`}
+        </div></div>` : '<p class="muted" style="margin-top:12px">The owner has not submitted this listing yet.</p>'}
+    </div>`;
+  }).join('') : '<div class="empty">Nothing here right now.</div>';
+  document.querySelectorAll('#lList img[data-photo]').forEach((img) => loadPhoto(img, img.dataset.photo));
+}
+async function loadPhoto(img, id) {
+  try {
+    const r = await fetch('/photos/' + Number(id), { headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok) img.src = URL.createObjectURL(await r.blob());
+  } catch {}
+}
+async function downloadSop(machineId) {
+  try {
+    const r = await fetch(`/machines/${Number(machineId)}/sop`, { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('Could not download the document.');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = 'operating-procedure.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { toast(e.message); }
+}
+async function decide(arg) {
+  const [id, decision] = String(arg).split(':');
+  const note = v('note' + id);
+  const labels = { verified: 'approve this listing? It will appear in search', changes_requested: 'send it back to the owner for changes', rejected: 'reject this listing', suspended: 'suspend this live listing? It will disappear from search' };
+  if (['changes_requested', 'rejected'].includes(decision) && note.length < 5) { toast('Write a short note telling the owner what to change or why.'); $('note' + id).focus(); return; }
+  if (!confirm('Do you want to ' + labels[decision] + '?')) return;
+  try {
+    await api(`/admin/centres/${Number(id)}/verification`, { method: 'POST', body: { verification: decision, platform_fee_pct: nv('fee' + id), ...(note ? { note } : {}) } });
+    toast({ verified: 'Approved. The listing is live.', changes_requested: 'Sent back to the owner.', rejected: 'Listing rejected.', suspended: 'Listing suspended.' }[decision]);
+    loadListings();
+  } catch (e) { toast(e.message); }
+}
+
 // ---------------------------------------------------------------- centres
 async function viewCentres() {
   CENTRES = await api('/admin/centres');
@@ -318,13 +403,14 @@ async function viewCentres() {
           <button class="btn sm ghost" data-act="editCentre" data-arg="${Number(c.id)}">Edit</button></td></tr>`).join('')}
     </tbody></table></div></div>`;
 }
-function reviewListing(id) {
+function reviewListing() { show('listings'); }
+function reviewListingOld(id) {
   const c = CENTRES.find((x) => Number(x.id) === id);
   openModal(`<div data-form><div class="shead"><h3>${esc(c.name)}</h3><p>${esc(c.owner_name || '')} · ${esc(c.owner_email || '')}<br>${esc(c.address)}, ${esc(c.district)}</p></div>
     <div class="sbody">
       <p class="muted" style="margin-bottom:10px">Check the owner, the address and the machines before approving. Approved listings appear in search and can be booked.</p>
       <div class="grid2">${field('fVer', 'Decision', `<select id="fVer">${[['verified', 'Approve (verified)'], ['rejected', 'Reject'], ['suspended', 'Suspend'], ['pending', 'Back to pending']].map(([k, l]) => opt(k, l, c.verification === 'pending' ? 'verified' : c.verification)).join('')}</select>`)}
-      ${field('fFee', 'Platform fee %', inp('fFee', c.platform_fee_pct, 'number', 'min="0" max="100" step="0.5"'), 'ProtoHub’s share of each job at this centre.')}</div>
+      ${field('fFee', 'Platform fee %', inp('fFee', c.platform_fee_pct, 'number', 'min="0" max="100" step="0.5"'), 'IICHUB’s share of each job at this centre.')}</div>
       <div id="mMsg" class="message"></div></div>
     <div class="sfoot"><button class="btn ghost" data-act="closeM">Cancel</button>
       <button class="btn go" id="mBtn" data-act="saveListing" data-arg="${id}">Save decision</button></div></div>`);
@@ -511,14 +597,14 @@ function changePassword() {
   });
 }
 async function signOutAll() {
-  if (!confirm('Sign out of ProtoHub on every device, including this one?')) return;
+  if (!confirm('Sign out of IICHUB on every device, including this one?')) return;
   logout();
 }
 
 window.ACTIONS = {
   doLogin, doSetPassword, logout: () => logout(), show, closeM,
   loadUsers, newUser, saveNewUser, editUser, saveUser, resetUser,
-  reviewListing, saveListing, editCentre, saveCentre, machinesFor,
+  reviewListing, saveListing, decide, downloadSop, editCentre, saveCentre, machinesFor,
   editMachine, saveMachine, materialFor, saveMaterial, loadAudit, changePassword, signOutAll,
 };
 

@@ -1,8 +1,8 @@
 {
-  "name": "protohub-app",
+  "name": "iichub",
   "version": "2.0.0",
   "private": true,
-  "description": "ProtoHub portal — API, accounts, admin console and notification worker",
+  "description": "IICHUB portal — API, accounts, admin console and notification worker",
   "main": "server.js",
   "scripts": {
     "start": "node scripts/migrate.js && node server.js",
@@ -19,7 +19,8 @@
     "dotenv": "^18.0.10",
     "fastify": "^5.12.8",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "sharp": "^0.35.5"
   },
   "engines": {
     "node": ">=22"

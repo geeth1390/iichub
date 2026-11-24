@@ -10,7 +10,9 @@
     if (!el || el.disabled) return;
     const fn = (window.ACTIONS || {})[el.dataset.act];
     if (typeof fn !== 'function') return;
-    e.preventDefault();
+    // Real links (href="#/…") still navigate; href="#" ones are buttons.
+    const href = el.tagName === 'A' ? el.getAttribute('href') : null;
+    if (!href || href === '#') e.preventDefault();
     let arg = el.dataset.arg;
     if (arg !== undefined && /^-?\d+$/.test(arg)) arg = Number(arg);
     fn(arg, el, e);
@@ -67,7 +69,7 @@
     const bar = document.createElement('div');
     bar.id = 'sampleNotice';
     bar.textContent = 'Pilot preview: centres, machines and rates shown are sample data and may not be accurate.';
-    bar.style.cssText = 'background:#fff4cc;color:#4a3b00;font:12px/1.4 Inter,system-ui,sans-serif;text-align:center;padding:6px 12px;border-bottom:1px solid #e6d38a';
+    bar.style.cssText = 'background:#FFF1E8;color:#7A2E0E;font:12px/1.4 Inter,system-ui,sans-serif;text-align:center;padding:6px 12px;border-bottom:1px solid #FFD9C2';
     document.body.prepend(bar);
   }).catch(() => {});
 })();

@@ -36,10 +36,10 @@ module.exports = async function authRoutes(app, { db, auth, audit, config }) {
       [user.id, purpose, hash, hours]
     );
     const link = `${config.siteUrl}/#${purpose === 'reset' ? 'reset' : 'verify'}=${raw}`;
-    const subject = purpose === 'reset' ? 'Reset your ProtoHub password' : 'Confirm your ProtoHub email';
+    const subject = purpose === 'reset' ? 'Reset your IICHUB password' : 'Confirm your IICHUB email';
     const body = purpose === 'reset'
-      ? `Hi ${user.name},\n\nUse this link within 1 hour to choose a new password:\n${link}\n\nIf you didn't ask for this, ignore this email; your password stays the same.\n\n— ProtoHub`
-      : `Hi ${user.name},\n\nPlease confirm your email address:\n${link}\n\n— ProtoHub`;
+      ? `Hi ${user.name},\n\nUse this link within 1 hour to choose a new password:\n${link}\n\nIf you didn't ask for this, ignore this email; your password stays the same.\n\n— IICHUB`
+      : `Hi ${user.name},\n\nPlease confirm your email address:\n${link}\n\n— IICHUB`;
     await sendEmail(user.email, subject, body);
     return true;
   }
@@ -132,15 +132,18 @@ module.exports = async function authRoutes(app, { db, auth, audit, config }) {
     const ok = await verifyPassword(req.body.password, u ? u.password_hash : null);
     if (!u) return fail('no such user');
     if (!ok) {
-      const fails = u.failed_logins + 1;
-      if (fails >= MAX_FAILS) {
-        await db.query(
-          `UPDATE app_user SET failed_logins = 0, locked_until = now() + make_interval(mins => $2) WHERE id = $1`,
-          [u.id, LOCK_MINUTES]
-        );
+      // One atomic statement, so parallel guesses can't overwrite each
+      // other's count and slip past the lock.
+      const { rows: lk } = await db.query(
+        `UPDATE app_user SET
+            locked_until  = CASE WHEN failed_logins + 1 >= $2 THEN now() + make_interval(mins => $3) ELSE locked_until END,
+            failed_logins = CASE WHEN failed_logins + 1 >= $2 THEN 0 ELSE failed_logins + 1 END
+          WHERE id = $1
+          RETURNING (locked_until IS NOT NULL AND locked_until > now()) AS locked`,
+        [u.id, MAX_FAILS, LOCK_MINUTES]
+      );
+      if (lk[0] && lk[0].locked) {
         await audit(req, 'auth.locked', 'app_user', u.id, { email }, false, 'too many wrong passwords');
-      } else {
-        await db.query('UPDATE app_user SET failed_logins = $2 WHERE id = $1', [u.id, fails]);
       }
       return fail('wrong password');
     }

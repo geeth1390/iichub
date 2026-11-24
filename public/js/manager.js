@@ -333,7 +333,7 @@ async function advance(id){
   try{
     await api('/jobs/'+id+'/advance',{
       method:'POST',
-      body:{ to:next.to, note:'Updated from ProtoHub manager console', grams }
+      body:{ to:next.to, note:'Updated from IICHUB manager console', grams }
     });
     toast('Job progress saved');
     await refreshAll();
