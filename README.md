@@ -165,3 +165,7 @@ Results on a 2-CPU / 8 GB machine, the same size as the VPS:
 - **A real map** on the machine page and in the listing form (needs a maps provider key). For now, there's a Google Maps link and "use my current location".
 - **Two-factor sign-in** (authenticator app) for admin accounts. This is recommended as the next security step.
 - **Online payment.**
+
+## Machine photos (admins)
+
+Admin console → **Machines** → **Photos** on any machine (government centres included). Upload JPG/PNG/WebP up to 5 MB, choose what it shows, and add a credit line (e.g. "Photo: APIIC Visakhapatnam"). The credit appears under the photo on the machine page. Use photos of the actual machine taken at the centre, or images you have permission to use. Manufacturer product photos are usually copyrighted.

@@ -317,7 +317,9 @@ module.exports = async function adminRoutes(app, { db, auth, audit }) {
               cap.max_x_mm, cap.max_y_mm, cap.max_z_mm, cap.tolerance_mm, cap.min_feature_mm, cap.layer_min_mm, cap.surface_finish,
               COALESCE((SELECT json_agg(json_build_object('code', mm.material_code, 'cost_per_gram', mm.cost_per_gram,
                         'in_stock_g', mm.in_stock_g, 'reorder_at_g', mm.reorder_at_g) ORDER BY mm.material_code)
-                        FROM machine_material mm WHERE mm.machine_id = m.id), '[]') AS materials
+                        FROM machine_material mm WHERE mm.machine_id = m.id), '[]') AS materials,
+              COALESCE((SELECT json_agg(json_build_object('id', ph.id, 'kind', ph.kind, 'caption', ph.caption) ORDER BY ph.sort, ph.id)
+                        FROM machine_photo ph WHERE ph.machine_id = m.id AND ph.data IS NOT NULL), '[]') AS photos
          FROM machine m JOIN centre c ON c.id = m.centre_id JOIN process p ON p.code = m.process_code
          LEFT JOIN machine_capability cap ON cap.machine_id = m.id
         ${req.query.centre_id ? 'WHERE m.centre_id = $1' : ''}

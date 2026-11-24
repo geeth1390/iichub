@@ -523,6 +523,7 @@ async function showMachine(id){
           <div class="gallery-main" id="gMain" style="background:${TINTS[code] || '#FFE4D3'}">
             ${photos.length ? `<img src="/photos/${Number(photos[0].id)}" alt="${escapeHtml(photos[0].caption || m.machine)}">` : icon(code, 72, 1.2)}
           </div>
+          <div class="credit" id="gCredit">${photos[0] && photos[0].caption ? escapeHtml(photos[0].caption) : ''}</div>
           ${photos.length > 1 ? `<div class="thumbs">${photos.slice(0, 8).map((p, i) => `<button class="${i ? '' : 'on'}" data-act="pickPhoto" data-arg="${Number(p.id)}" aria-label="Show photo ${i + 1}"><img src="/photos/${Number(p.id)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
         </div>
         <div class="mhead">
@@ -564,6 +565,8 @@ async function showMachine(id){
 function pickPhoto(id){
   const main = $('gMain');
   main.innerHTML = `<img src="/photos/${Number(id)}" alt="">`;
+  const ph = ((currentMachine && currentMachine.photos) || []).find(p => Number(p.id) === Number(id));
+  $('gCredit').textContent = ph && ph.caption ? ph.caption : '';
   document.querySelectorAll('.thumbs button').forEach(b => b.classList.toggle('on', Number(b.dataset.arg) === Number(id)));
 }
 
@@ -1045,8 +1048,18 @@ async function showListings(){
 
 // ---------------- routing ----------------
 function showView(name){
-  ['home','machine','list','listings'].forEach(v => { $('view-' + v).hidden = v !== name; });
-  window.scrollTo({ top: 0 });
+  ['home','machine','list','listings','how'].forEach(v => { $('view-' + v).hidden = v !== name; });
+  closeMenu();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+function toggleMenu(){
+  const open = !$('navlinks').classList.contains('open');
+  $('navlinks').classList.toggle('open', open);
+  $('menuBtn').setAttribute('aria-expanded', String(open));
+}
+function closeMenu(){
+  $('navlinks').classList.remove('open');
+  $('menuBtn').setAttribute('aria-expanded', 'false');
 }
 async function route(){
   const h = location.hash || '#/';
@@ -1057,15 +1070,20 @@ async function route(){
   else if((m = h.match(/^#\/list\/(\d+)/))){ showView('list'); await showList(Number(m[1])); }
   else if(h === '#/list'){ showView('list'); await showList(); }
   else if(h === '#/listings'){ showView('listings'); await showListings(); }
-  else if(h === '#/how'){ showView('home'); document.getElementById('how').scrollIntoView(); }
+  else if(h === '#/how'){ showView('how'); }
   else { showView('home'); }
 }
 window.addEventListener('hashchange', route);
+// Clicking a link to the page you're already on still takes you there.
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#/"]');
+  if(a && a.getAttribute('href') === location.hash && !a.dataset.act){ e.preventDefault(); route(); }
+});
 ['loc','mat','tol'].forEach(id => $(id).addEventListener('change', run));
 $('searchForm').addEventListener('submit', e => { e.preventDefault(); run(); });
 
 window.ACTIONS = {
-  run, pickProc, pickPhoto, openSlots, selectSlot, confirmBooking, openMyJobs, acceptQuote, cancelJob, closeM,
+  run, pickProc, pickPhoto, toggleMenu, openSlots, selectSlot, confirmBooking, openMyJobs, acceptQuote, cancelJob, closeM,
   accountAction, showLogin, doLogin, showRegister, doRegister, showForgot, doForgot, doReset,
   showChangePassword: () => showChangePassword(false), doChangePassword, showAccount, resendVerify, signOut, signOutAll,
   wizNext, wizBack, wizGo, wizLocate, wizDelPhoto, wizSubmit

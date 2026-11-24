@@ -389,6 +389,47 @@ module.exports = async function listingRoutes(app, { db, auth, audit }) {
     return reply.type('application/pdf').send(d.data);
   });
 
+  // ---------- admin: photos for any machine (government centres included) ----------
+  app.post('/admin/machines/:id/photos', {
+    preValidation: auth.guard(ADMINS),
+    bodyLimit: UPLOAD_LIMIT,
+    config: { rateLimit: { max: 120, timeWindow: '1 hour' } },
+    schema: {
+      querystring: {
+        type: 'object', additionalProperties: false,
+        properties: { kind: { enum: ['machine', 'location', 'sample_output'] }, caption: s(120) },
+      },
+    },
+  }, async (req, reply) => {
+    const machineId = int(req.params.id);
+    if (!Buffer.isBuffer(req.body)) throw httpError(415, 'Upload a JPG, PNG or WebP image.');
+    const { rows: ok } = await db.query('SELECT 1 FROM machine WHERE id = $1', [machineId]);
+    if (!ok[0]) throw httpError(404, 'Machine not found.');
+    const img = await processImage(req.body);
+    const id = await tx(async (client) => {
+      await client.query('SELECT id FROM machine WHERE id = $1 FOR UPDATE', [machineId]);
+      const { rows: n } = await client.query('SELECT count(*)::int AS n FROM machine_photo WHERE machine_id = $1', [machineId]);
+      if (n[0].n >= MAX_PHOTOS) throw httpError(409, `A machine can have up to ${MAX_PHOTOS} photos. Remove one first.`);
+      const r = await client.query(
+        `INSERT INTO machine_photo (machine_id, kind, caption, sort, data, mime, size_bytes, width, height, uploaded_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+        [machineId, req.query.kind || 'machine', req.query.caption ? req.query.caption.trim() : null, n[0].n,
+         img.data, img.mime, img.size, img.width, img.height, req.user.id]
+      );
+      return Number(r.rows[0].id);
+    });
+    await audit(req, 'machine.photo_add', 'machine', machineId, { photo_id: id });
+    return reply.code(201).send({ id });
+  });
+
+  app.delete('/admin/photos/:id', { preValidation: auth.guard(ADMINS) }, async (req) => {
+    const id = int(req.params.id);
+    const { rows } = await db.query('DELETE FROM machine_photo WHERE id = $1 RETURNING machine_id', [id]);
+    if (!rows[0]) throw httpError(404, 'Photo not found.');
+    await audit(req, 'machine.photo_delete', 'machine', rows[0].machine_id, { photo_id: id });
+    return { ok: true };
+  });
+
   // ---------- admin: review queue ----------
   app.get('/admin/listings', {
     preValidation: auth.guard(ADMINS),

@@ -481,7 +481,8 @@ async function loadMachines() {
       <td>${money(m.rate_per_hour)}/hr<div class="muted">setup ${money(m.setup_fee)} · min ${money(m.min_charge)}</div></td>
       <td class="muted">${(m.materials || []).map((x) => `${esc(x.code)} (${Math.round(x.in_stock_g)}g)`).join(', ') || '—'}</td>
       <td><span class="pill ${m.status === 'available' ? 'live' : 'off'}">${esc(m.status.replace('_', ' '))}</span></td>
-      <td class="actions"><button class="btn sm ghost" data-act="materialFor" data-arg="${Number(m.id)}">+ Material</button>
+      <td class="actions"><button class="btn sm ghost" data-act="photosFor" data-arg="${Number(m.id)}">Photos (${(m.photos || []).length})</button>
+        <button class="btn sm ghost" data-act="materialFor" data-arg="${Number(m.id)}">+ Material</button>
         <button class="btn sm ghost" data-act="editMachine" data-arg="${Number(m.id)}">Edit</button></td></tr>`).join('')}
     </tbody></table>` : '<div class="empty">No machines here yet.</div>';
 }
@@ -527,6 +528,62 @@ function saveMachine(id) {
     closeM(); toast('Machine saved'); loadMachines();
   });
 }
+// ---------- machine photos (admins) ----------
+let photoMachine = null;
+function photosFor(id) {
+  photoMachine = MACHINES.find((x) => Number(x.id) === id);
+  renderPhotos();
+}
+function renderPhotos() {
+  const m = photoMachine;
+  const photos = m.photos || [];
+  openModal(`<div data-form><div class="shead"><h3>Photos · ${esc(m.make + ' ' + m.model)}</h3>
+      <p>${esc(m.centre_name)}. Use photos of <b>this actual machine</b>, ideally taken at the centre. If a photo belongs to someone else, put their name in the credit and make sure you have permission.</p></div>
+    <div class="sbody">
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px">
+        ${photos.map((p) => `<figure style="position:relative;margin:0"><img data-photo="${Number(p.id)}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:10px;background:var(--steel-50)">
+          <figcaption class="muted" style="font-size:11px">${esc(p.caption || ({ machine: 'Device', location: 'Entrance', sample_output: 'Sample' }[p.kind] || p.kind))}</figcaption>
+          <button class="btn sm danger" style="position:absolute;top:4px;right:4px;min-height:30px;padding:0 8px" data-act="delPhoto" data-arg="${Number(p.id)}" aria-label="Remove photo">×</button></figure>`).join('') || '<p class="muted" style="grid-column:1/-1">No photos yet.</p>'}
+      </div>
+      <div class="grid3">
+        ${field('phKind', 'What it shows', `<select id="phKind">${[['machine', 'The machine'], ['sample_output', 'Sample output'], ['location', 'Centre / entrance']].map(([k, l]) => opt(k, l)).join('')}</select>`)}
+        <div style="grid-column:span 2">${field('phCap', 'Credit / caption (optional)', inp('phCap', '', 'text', 'maxlength="120" placeholder="e.g. Photo: APIIC Visakhapatnam"'))}</div>
+      </div>
+      ${field('phFile', 'Photo (JPG, PNG or WebP, up to 5 MB)', '<input id="phFile" type="file" accept="image/jpeg,image/png,image/webp" multiple>')}
+      <div id="mMsg" class="message"></div>
+    </div>
+    <div class="sfoot"><button class="btn ghost" data-act="closeM">Done</button>
+      <button class="btn go" id="mBtn" data-act="uploadPhotos">Upload</button></div></div>`);
+  document.querySelectorAll('#sheet img[data-photo]').forEach((img) => loadPhoto(img, img.dataset.photo));
+}
+async function uploadPhotos() {
+  const files = [...$('phFile').files];
+  if (!files.length) { setMsg('Choose a photo first.'); return; }
+  const btn = $('mBtn'); btn.disabled = true;
+  const q = new URLSearchParams({ kind: v('phKind') });
+  if (v('phCap')) q.set('caption', v('phCap'));
+  try {
+    for (const f of files) {
+      if (f.size > 5 * 1024 * 1024) throw new Error(`${f.name}: photos must be 5 MB or smaller.`);
+      setMsg(`Uploading ${f.name}…`, true);
+      const r = await fetch(`/admin/machines/${Number(photoMachine.id)}/photos?${q}`, { method: 'POST', body: f,
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': f.type || 'application/octet-stream' } });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(`${f.name}: ${d.error || 'upload failed'}`);
+      photoMachine.photos = [...(photoMachine.photos || []), { id: d.id, kind: v('phKind'), caption: v('phCap') || null }];
+    }
+    toast('Photo added'); renderPhotos(); loadMachines();
+  } catch (e) { setMsg(e.message); btn.disabled = false; }
+}
+async function delPhoto(id) {
+  if (!confirm('Remove this photo?')) return;
+  try {
+    await api('/admin/photos/' + Number(id), { method: 'DELETE' });
+    photoMachine.photos = photoMachine.photos.filter((p) => Number(p.id) !== Number(id));
+    renderPhotos(); loadMachines();
+  } catch (e) { toast(e.message); }
+}
+
 function materialFor(id) {
   const m = MACHINES.find((x) => Number(x.id) === id);
   openModal(`<div data-form><div class="shead"><h3>Material for ${esc(m.make + ' ' + m.model)}</h3>
@@ -605,7 +662,7 @@ window.ACTIONS = {
   doLogin, doSetPassword, logout: () => logout(), show, closeM,
   loadUsers, newUser, saveNewUser, editUser, saveUser, resetUser,
   reviewListing, saveListing, decide, downloadSop, editCentre, saveCentre, machinesFor,
-  editMachine, saveMachine, materialFor, saveMaterial, loadAudit, changePassword, signOutAll,
+  editMachine, saveMachine, materialFor, saveMaterial, photosFor, uploadPhotos, delPhoto, loadAudit, changePassword, signOutAll,
 };
 
 if (token) start(); else showLogin();

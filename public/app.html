@@ -17,7 +17,10 @@
       <span class="logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B1B3F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"/><path d="M12 11l8-4.5M12 11v9M12 11L4 6.5"/></svg></span>
       <span class="wordmark">IIC<span>HUB</span></span>
     </a>
-    <nav class="navlinks" aria-label="Main">
+    <button class="menuBtn" id="menuBtn" data-act="toggleMenu" aria-label="Menu" aria-expanded="false" aria-controls="navlinks">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <nav class="navlinks" id="navlinks" aria-label="Main">
       <a href="#/">Find machines</a>
       <a href="#/how">How it works</a>
       <a href="#/list">List your equipment</a>
@@ -142,10 +145,52 @@
             <li><span>2</span><div><b>Book a slot</b><small>Pick a free hour at a centre near you.</small></div></li>
             <li><span>3</span><div><b>Approve the quote</b><small>The centre prices the job; you accept, then collect.</small></div></li>
           </ol>
-          <a class="small" href="#/list">Own a 3D printer or CNC? List it on IICHUB →</a>
+          <a class="small" href="#/how">Read the full guide →</a>
         </div>
       </aside>
     </div>
+  </div>
+</main>
+
+<main id="view-how" class="view" hidden>
+  <div class="wrap narrow">
+    <section class="how-hero">
+      <h1>How IICHUB works</h1>
+      <p>IICHUB connects people who need a part made with prototyping machines at government centres and verified private labs, so you can book an hour on a real machine near you.</p>
+      <div class="how-cta"><a class="btn accent" href="#/">Find a machine</a><a class="btn ghost" href="#/list">List your equipment</a></div>
+    </section>
+
+    <section class="how-sec" aria-labelledby="how-inno">
+      <h2 id="how-inno">If you want something made</h2>
+      <ol class="how-steps">
+        <li><span class="n">1</span><div><h3>Describe your part</h3><p>Enter its size (length × width × height in mm), the material, and how precise it needs to be. Choose the city you're near, or "Anywhere in India".</p></div></li>
+        <li><span class="n">2</span><div><h3>Pick a machine and a free hour</h3><p>Results show only machines big enough and precise enough for your part, nearest first, with the price per hour and the days that still have free slots. Open <b>Details</b> to see photos, how a job runs and the safety rules.</p></div></li>
+        <li><span class="n">3</span><div><h3>Get a quote, then decide</h3><p>Booking holds the slot. The centre works out the cost (machine time, setup fee and material) and sends you a quote in <b>My jobs</b>. Nothing is charged until you accept it.</p></div></li>
+        <li><span class="n">4</span><div><h3>Follow the job and collect</h3><p>My jobs shows each stage: queued, being made, quality check, ready to collect. The centre's address and phone number are shown once your booking is confirmed.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="how-sec" aria-labelledby="how-owner">
+      <h2 id="how-owner">If you own a machine</h2>
+      <ol class="how-steps">
+        <li><span class="n">1</span><div><h3>Create an owner account</h3><p>Sign up and tick <b>"I own equipment"</b>.</p></div></li>
+        <li><span class="n">2</span><div><h3>List your device</h3><p>Five short steps: where it is, what it can make, photos (at least one of the device), how a job runs with your safety rules, then review. You can save and finish later.</p></div></li>
+        <li><span class="n">3</span><div><h3>We check it</h3><p>The IICHUB team reviews every listing. We approve it, or ask for changes with a note explaining what to fix. Nothing is public until it's approved.</p></div></li>
+        <li><span class="n">4</span><div><h3>Take bookings</h3><p>Innovators see your area and distance. Your full address and phone are shared only with people who have booked. If you change a live listing, it's checked again before it goes back up.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="how-sec" aria-labelledby="how-faq">
+      <h2 id="how-faq">Common questions</h2>
+      <div class="faq">
+        <details><summary>What does it cost?</summary><p>Each machine shows its price per hour, plus any setup fee and minimum charge. Material is added in the quote. Some centres give students a discount, and the quote shows the exact total before you agree.</p></details>
+        <details><summary>Do I pay online?</summary><p>Not yet. The centre tells you how to pay when it sends your quote.</p></details>
+        <details><summary>Can I cancel?</summary><p>Yes. Until work starts, you can cancel from My jobs and the slot is released. After that, contact the centre.</p></details>
+        <details><summary>Who runs the machine?</summary><p>It depends on the machine. Each machine page says whether the centre's operator runs it or you run it after a briefing.</p></details>
+        <details><summary>What files should I bring?</summary><p>Each machine page lists the file types it accepts, for example STL or 3MF for 3D printers and DXF or SVG for laser cutters.</p></details>
+        <details><summary>Is a private lab safe to use?</summary><p>Every private lab is checked by the IICHUB team before it appears, and is marked "Private lab · verified". Each one publishes its safety rules on its machine page.</p></details>
+      </div>
+    </section>
   </div>
 </main>
 
