@@ -140,8 +140,8 @@ async function start() {
 // ---------------------------------------------------------------- tabs
 function renderTabs() {
   const tabs = isAdmin()
-    ? [['overview', 'Overview'], ['listings', 'Listings to review'], ['users', 'Accounts'], ['centres', 'Centres'], ['machines', 'Machines']]
-    : [['users', 'Staff accounts']];
+    ? [['overview', 'Overview'], ['utilisation', 'Utilisation'], ['listings', 'Listings to review'], ['users', 'Accounts'], ['centres', 'Centres'], ['machines', 'Machines']]
+    : [['utilisation', 'Utilisation'], ['users', 'Staff accounts']];
   if (isSuper()) tabs.push(['audit', 'Audit log']);
   tabs.push(['account', 'My account']);
   $('tabs').innerHTML = tabs.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-act="show" data-arg="${k}">${l}</button>`).join('');
@@ -151,7 +151,7 @@ async function show(name) {
   renderTabs();
   $('view').innerHTML = '<div class="empty">Loading…</div>';
   try {
-    await ({ overview: viewOverview, listings: viewListings, users: viewUsers, centres: viewCentres, machines: viewMachines, audit: viewAudit, account: viewAccount }[name])();
+    await ({ overview: viewOverview, listings: viewListings, users: viewUsers, centres: viewCentres, machines: viewMachines, utilisation: viewUtilisation, audit: viewAudit, account: viewAccount }[name])();
   } catch (e) {
     $('view').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   }
@@ -165,7 +165,7 @@ async function viewOverview() {
     ['Pending listings', o.pending_listings, o.pending_listings ? 'alert' : ''],
     ['Centres (live)', `${o.centres.n} (${o.centres.live})`],
     ['Machines', n.machines],
-    ['Avg utilisation', Math.round((n.avg_utilisation || 0) * 100) + '%'],
+    ['Booked share, last 7 days', Math.round((n.avg_utilisation || 0) * 100) + '%'],
     ['Innovators', r.innovator || 0],
     ['Equipment owners', r.equipment_owner || 0],
     ['Centre staff + managers', (r.centre_staff || 0) + (r.centre_manager || 0)],
@@ -178,6 +178,126 @@ async function viewOverview() {
   $('view').innerHTML = `<h2>Overview</h2><p class="sub">The whole network at a glance.</p>
     <div class="cards">${cards.map(([l, val, c]) => `<div class="card ${c || ''}"><b>${esc(val)}</b><span>${esc(l)}</span></div>`).join('')}</div>
     ${o.pending_listings ? '<p><button class="btn primary" data-act="show" data-arg="listings">Review pending listings</button></p>' : ''}`;
+}
+
+// ---------------------------------------------------------------- utilisation report
+const FLAG_LABEL = { underused: 'Under 20% used', near_capacity: 'Over 85% booked', leakage: 'Bookings not run', no_shows: 'Many no-shows', downtime: 'High downtime', estimates_off: 'Quotes off' };
+const DAYS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const P = (x) => (x == null ? '—' : Math.round(x * 100) + '%');
+const HRS = (x) => (x == null ? '—' : Number(x).toLocaleString('en-IN', { maximumFractionDigits: 0 }) + ' h');
+let repCentres = null;
+function isoDay(d) { return new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0, 10); }
+async function viewUtilisation() {
+  const to = isoDay(new Date());
+  const from = isoDay(new Date(Date.now() - 29 * 864e5));
+  if (isAdmin() && !repCentres) repCentres = await api('/admin/centres');
+  $('view').innerHTML = `<h2>Utilisation</h2>
+    <p class="sub">How much of each machine's open time was booked, and how much it actually ran.</p>
+    <div class="toolbar" data-form>
+      <label class="muted">From <input id="rFrom" type="date" value="${from}" max="${to}"></label>
+      <label class="muted">To <input id="rTo" type="date" value="${to}" max="${to}"></label>
+      ${isAdmin() ? `<select id="rCentre"><option value="">All centres</option>${repCentres.filter((c) => c.is_live).map((c) => opt(c.id, c.name)).join('')}</select>` : ''}
+      <button class="btn go" data-act="loadUtilisation">Show</button>
+      <button class="btn ghost" data-act="downloadUtilisation">Download CSV</button>
+    </div>
+    <div id="repOut"><div class="empty">Loading…</div></div>`;
+  await loadUtilisation();
+}
+function repQuery() {
+  const q = new URLSearchParams({ from: v('rFrom'), to: v('rTo') });
+  if ($('rCentre') && v('rCentre')) q.set('centre_id', v('rCentre'));
+  return q.toString();
+}
+async function loadUtilisation() {
+  const out = $('repOut');
+  out.innerHTML = '<div class="empty">Loading…</div>';
+  try { renderUtilisation(await api('/reports/utilisation?' + repQuery())); } catch (e) { out.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function downloadUtilisation() {
+  try {
+    const r = await fetch('/reports/utilisation.csv?' + repQuery(), { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('Could not download the report.');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = `iichub-utilisation-${v('rFrom')}-to-${v('rTo')}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { toast(e.message); }
+}
+function insights(r) {
+  const t = r.totals, L = [];
+  if (!t.available_h) return ['No open machine hours in this period.'];
+  L.push(`Machines actually ran <b>${P(t.utilisation)}</b> of their available hours (${HRS(t.executed_h)} of ${HRS(t.available_h)}). Customers booked ${P(t.booking_rate)}.`);
+  if (t.booked_h > 0) {
+    const early = Math.max(t.gap_h - t.noshow_h, 0);
+    L.push(`<b>${P(t.execution_ratio)}</b> of booked hours became machine time. Of the ${HRS(t.gap_h)} booked but not run, ${HRS(t.noshow_h)} were no-shows and ${HRS(early)} were jobs that finished early or started late.`);
+  }
+  if (t.cancellations) L.push(`${t.cancellations} bookings (${HRS(t.cancelled_h)}) were cancelled, freeing slots that could be re-offered sooner.`);
+  if (t.idle_value > 0) L.push(`Unbooked hours add up to <b>${money(t.idle_value)}</b> at each machine's listed hourly rate. That is the most these machines could have earned if fully booked, not money lost.`);
+  const under = r.machines.filter((m) => m.flags.includes('underused')).length;
+  const full = r.machines.filter((m) => m.flags.includes('near_capacity'));
+  if (under) L.push(`${under} of ${t.machines} machines were used less than 20% of the time — candidates for outreach, pooling with nearby centres, or listing on I-STEM.`);
+  if (full.length) L.push(`${full.length} machine(s) were over 85% booked (${full.slice(0, 3).map((m) => esc(m.machine)).join(', ')}) — demand may justify more capacity or longer hours.`);
+  if (t.estimate_ratio != null && t.jobs_compared >= 3) {
+    const off = r.machines.filter((m) => m.flags.includes('estimates_off')).length;
+    L.push(`Jobs took <b>${P(t.estimate_ratio)}</b> of their quoted time on average${off ? `; ${off} machine(s) are off by more than 25% and need their time estimates updated` : ''}.`);
+  }
+  if (t.down_h > 0) L.push(`Repairs and blocked slots took ${HRS(t.down_h)} (${P(t.down_h / t.open_h)} of open hours).`);
+  if (r.heatmap.length) {
+    const top = [...r.heatmap].sort((a, b) => b.hours - a.hours)[0];
+    L.push(`Busiest hour: <b>${DAYS[top.dow]} ${String(top.hour).padStart(2, '0')}:00</b>. Spreading bookings into quieter hours can lift use without new machines.`);
+  }
+  const tm = r.timing;
+  if (tm.median_lead_hours != null || tm.median_quote_hours != null) {
+    L.push(`Typical wait: ${tm.median_lead_hours != null ? Math.round(tm.median_lead_hours) + ' h from booking to slot' : ''}${tm.median_lead_hours != null && tm.median_quote_hours != null ? '; ' : ''}${tm.median_quote_hours != null ? Math.round(tm.median_quote_hours) + ' h to send a quote' : ''}.`);
+  }
+  if (isAdmin() && r.by_centre.length > 1) {
+    const c = r.by_centre.filter((x) => x.available_h > 0);
+    if (c.length > 1) L.push(`Highest use: ${esc(c[0].label)} (${P(c[0].utilisation)}). Lowest: ${esc(c[c.length - 1].label)} (${P(c[c.length - 1].utilisation)}).`);
+  }
+  return L;
+}
+function renderUtilisation(r) {
+  const t = r.totals;
+  const open = t.open_h || 0;
+  const seg = (h) => (open ? (100 * h) / open : 0);
+  const idle = t.unbooked_h;
+  const gap = t.gap_h;
+  const cards = [
+    ['Utilisation (ran ÷ available)', P(t.utilisation)], ['Booked ÷ available', P(t.booking_rate)], ['Booked → executed', P(t.execution_ratio)],
+    ['Available hours', HRS(t.available_h)], ['Booked hours', HRS(t.booked_h)], ['Executed hours', HRS(t.executed_h)],
+    ['Lost to no-shows', HRS(t.noshow_h), t.noshow_h > 0.05 * t.booked_h ? 'alert' : ''], ['Unbooked hours at listed rates', money(t.idle_value)],
+    ['Actual ÷ quoted time', P(t.estimate_ratio)], ['Jobs finished', t.jobs_done],
+  ];
+  // weekday x hour grid
+  const hours = r.heatmap.map((h) => h.hour);
+  const h0 = hours.length ? Math.min(...hours) : 9, h1 = hours.length ? Math.max(...hours) : 17;
+  const max = Math.max(1, ...r.heatmap.map((h) => h.hours));
+  const cell = (d, h) => (r.heatmap.find((x) => x.dow === d && x.hour === h) || {}).hours || 0;
+  const days = [...new Set(r.heatmap.map((h) => h.dow))].sort();
+  const cols = h1 - h0 + 1;
+  const heat = days.length ? `<div class="heat" style="grid-template-columns:40px repeat(${cols},1fr)">
+      <div></div>${Array.from({ length: cols }, (_, i) => `<div class="muted">${h0 + i}</div>`).join('')}
+      ${days.map((d) => `<div class="hl">${DAYS[d]}</div>${Array.from({ length: cols }, (_, i) => { const x = cell(d, h0 + i); const a = x / max; return `<div title="${DAYS[d]} ${h0 + i}:00 — ${x} booked h" style="background:rgba(21,128,61,${(0.08 + a * 0.85).toFixed(2)});color:${a > 0.55 ? '#fff' : 'inherit'}">${x ? Math.round(x) : ''}</div>`; }).join('')}`).join('')}
+    </div>` : '<p class="muted">No bookings in this period.</p>';
+  const meter = (x) => `<span class="meter"><b style="width:${Math.min(100, Math.round((x || 0) * 100))}%"></b></span>${P(x)}`;
+  const centreTable = isAdmin() && !v('rCentre') && r.by_centre.length > 1 ? `<div class="rep-box"><h3>By centre</h3><div class="tablewrap"><table>
+      <thead><tr><th>Centre</th><th>Machines</th><th>Available</th><th>Booked</th><th>Executed</th><th>Utilisation</th><th>Booked → executed</th><th>Unbooked value</th></tr></thead>
+      <tbody>${r.by_centre.map((c) => `<tr><td>${esc(c.label)}</td><td>${c.machines}</td><td>${HRS(c.available_h)}</td><td>${HRS(c.booked_h)}</td><td>${HRS(c.executed_h)}</td><td>${meter(c.utilisation)}</td><td>${P(c.execution_ratio)}</td><td>${money(c.idle_value)}</td></tr>`).join('')}</tbody></table></div></div>` : '';
+  const ms = [...r.machines].sort((a, b) => (a.utilisation ?? 2) - (b.utilisation ?? 2));
+  $('repOut').innerHTML = `
+    <div class="cards">${cards.map(([l, val, c]) => `<div class="card ${c || ''}"><b>${esc(val)}</b><span>${esc(l)}</span></div>`).join('')}</div>
+    <div class="rep-box"><h3>Where the open hours went</h3>
+      <div class="rep-bar" role="img" aria-label="Share of open hours: executed ${Math.round(seg(t.executed_h))}%, booked not run ${Math.round(seg(gap))}%, not booked ${Math.round(seg(idle))}%, downtime ${Math.round(seg(t.down_h))}%">
+        <span class="seg-exec" style="width:${seg(t.executed_h)}%"></span><span class="seg-gap" style="width:${seg(gap)}%"></span><span class="seg-idle" style="width:${seg(idle)}%"></span><span class="seg-down" style="width:${seg(t.down_h)}%"></span></div>
+      <div class="rep-legend"><span><i class="seg-exec"></i>Ran a job ${HRS(t.executed_h)}</span><span><i class="seg-gap"></i>Booked, not run ${HRS(gap)}</span><span><i class="seg-idle"></i>Not booked ${HRS(idle)}</span><span><i class="seg-down"></i>Repairs / blocked ${HRS(t.down_h)}</span></div>
+    </div>
+    <div class="rep-box"><h3>What the numbers say</h3><ul class="insights">${insights(r).map((x) => `<li>${x}</li>`).join('')}</ul></div>
+    <div class="rep-box"><h3>When people book (booked hours by weekday and hour)</h3>${heat}</div>
+    ${centreTable}
+    <div class="rep-box"><h3>By machine <span class="muted">— lowest use first</span></h3><div class="tablewrap"><table>
+      <thead><tr><th>Machine</th><th>Centre</th><th>Available</th><th>Booked</th><th>Executed</th><th>Utilisation</th><th>Booked → executed</th><th>No-shows</th><th>Actual ÷ quoted</th><th>Flags</th></tr></thead>
+      <tbody>${ms.map((m) => `<tr><td>${esc(m.machine)}<div class="muted">${esc(m.process)}</div></td><td>${esc(m.centre)}</td><td>${HRS(m.available_h)}</td><td>${HRS(m.booked_h)}</td><td>${HRS(m.executed_h)}</td><td>${meter(m.utilisation)}</td><td>${P(m.execution_ratio)}</td><td>${m.no_shows}</td><td>${P(m.estimate_ratio)}</td><td>${m.flags.map((f) => `<span class="flag ${f}">${esc(FLAG_LABEL[f] || f)}</span>`).join('')}</td></tr>`).join('') || '<tr><td colspan="10" class="muted">No machines in this view.</td></tr>'}</tbody></table></div></div>
+    <p class="muted"><b>How this is measured.</b> Available = centre opening hours on working days, minus repairs and blocked slots. Booked = customer booking slots, including no-shows. Executed = time a job was marked Setup or Running by centre staff, so it is only as accurate as staff updating job stages on time. Only hours already passed are counted. ${r.machines.length ? '' : ''}</p>`;
 }
 
 // ---------------------------------------------------------------- accounts
@@ -662,6 +782,7 @@ window.ACTIONS = {
   doLogin, doSetPassword, logout: () => logout(), show, closeM,
   loadUsers, newUser, saveNewUser, editUser, saveUser, resetUser,
   reviewListing, saveListing, decide, downloadSop, editCentre, saveCentre, machinesFor,
+  loadUtilisation, downloadUtilisation,
   editMachine, saveMachine, materialFor, saveMaterial, photosFor, uploadPhotos, delPhoto, loadAudit, changePassword, signOutAll,
 };
 

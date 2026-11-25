@@ -456,3 +456,6 @@ SELECT 4, 'Laser tube replacement and mirror re-alignment', 'repair', now() + IN
 WHERE EXISTS (SELECT 1 FROM machine WHERE id=4)
   AND NOT EXISTS (SELECT 1 FROM maintenance_window WHERE machine_id=4 AND resolved_at IS NULL);
 
+
+-- 60 days of sample usage history for the utilisation report (see migration 009).
+SELECT generate_sample_usage_history(60);

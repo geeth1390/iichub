@@ -91,6 +91,25 @@ td.actions .btn{margin-left:4px}
 .login-card p{color:var(--steel-500);font-size:13px;margin-bottom:14px}
 .login-card .btn{width:100%;padding:12px;margin-top:4px}
 .hidden{display:none!important}
+
+/* utilisation report */
+.rep-bar{display:flex;height:26px;border-radius:8px;overflow:hidden;border:1px solid var(--line);margin:8px 0}
+.rep-bar span{display:block;height:100%}
+.seg-exec{background:var(--verd)}.seg-gap{background:var(--safety)}.seg-idle{background:var(--steel-100)}.seg-down{background:var(--steel-500)}
+.rep-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--steel-500)}
+.rep-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.rep-box{background:#FFFEFA;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px}
+.rep-box h3{font-size:15px;margin-bottom:6px}
+.insights{margin:6px 0 0 18px}.insights li{margin:5px 0}
+.heat{display:grid;gap:2px;font-size:11px;margin-top:8px}
+.heat div{padding:4px 0;text-align:center;border-radius:3px}
+.heat .hl{text-align:left;color:var(--steel-500);padding-right:6px}
+.flag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:20px;margin:1px 2px 1px 0;white-space:nowrap;border:1px solid}
+.flag.underused,.flag.leakage,.flag.no_shows{color:var(--oxide);border-color:var(--oxide)}
+.flag.near_capacity{color:var(--verd);border-color:var(--verd)}
+.flag.downtime,.flag.estimates_off{color:var(--steel-500);border-color:var(--steel-300)}
+.meter{display:inline-block;width:60px;height:7px;background:var(--steel-100);border-radius:4px;vertical-align:middle;margin-right:6px;overflow:hidden}
+.meter b{display:block;height:100%;background:var(--verd)}
 </style>
 </head>
 <body>

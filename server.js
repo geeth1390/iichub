@@ -129,6 +129,7 @@ async function buildApp({ config, db, logger = true }) {
   await app.register(require('./routes/owner'), ctx);
   await app.register(require('./routes/admin'), ctx);
   await app.register(require('./routes/listings'), ctx);
+  await app.register(require('./routes/reports'), ctx);
 
   app.get('/config.json', async () => ({ sample_notice: config.demoBanner }));
 

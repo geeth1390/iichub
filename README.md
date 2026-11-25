@@ -169,3 +169,25 @@ Results on a 2-CPU / 8 GB machine, the same size as the VPS:
 ## Machine photos (admins)
 
 Admin console → **Machines** → **Photos** on any machine (government centres included). Upload JPG/PNG/WebP up to 5 MB, choose what it shows, and add a credit line (e.g. "Photo: APIIC Visakhapatnam"). The credit appears under the photo on the machine page. Use photos of the actual machine taken at the centre, or images you have permission to use. Manufacturer product photos are usually copyrighted.
+
+## Utilisation report
+
+Admin console → **Utilisation** (admins see every centre; centre managers see their own). Pick a period and, for admins, a centre.
+
+| Measure | How it is calculated |
+|---|---|
+| Available hours | Centre opening hours on its working days, from the machine's commissioning date, minus repairs (maintenance windows) and blocked slots |
+| Booked hours | Customer booking slots: requested, confirmed, completed and no-show (cancelled bookings are shown separately) |
+| Executed hours | Time a job was marked **Setup** or **Running** by centre staff, from the job's timestamped history |
+| Utilisation | Executed ÷ available |
+| Booked → executed | Executed ÷ booked. The gap is split into no-shows and jobs that finished early or started late |
+| Actual ÷ quoted | Real setup + run time ÷ the time in the quote, for jobs that reached Ready in the period |
+| Unbooked hours at listed rates | Unbooked hours × the machine's hourly rate: the most it could have earned, not money lost |
+
+Only hours already passed are counted. Executed hours are only as accurate as staff updating job stages on time. **Download CSV** exports the per-machine table (cells starting with `=`, `+`, `-` or `@` are escaped so spreadsheets don't run them as formulas).
+
+Flags per machine: under 20% used, over 85% booked, bookings not run (<70% executed), many no-shows (>15%), high downtime (>20% of open hours), quotes off (actual time more than 25% away from quoted, 3+ jobs).
+
+**Sample history.** Installs with the sample catalogue (`SEED_DEMO=true`) get 60 days of sample bookings and jobs so the report has something to show. They belong to the disabled `sample-history@system.invalid` account. Remove them with `SELECT remove_sample_usage_history();` before going live with real centres.
+
+Tests: `python3 tests/report_test.py` checks the arithmetic on a known scenario (29 checks).
